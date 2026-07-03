@@ -34,14 +34,14 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -di > ${{ runner.temp }}/keystore.jks
 
-      - name: 构建 Debug APK (beta)
+      - name: 构建 Release APK (beta, debug签名)
         if: github.ref_name == 'beta'
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
-      - name: 构建 Release APK (master)
+      - name: 构建 Release APK (master, 正式签名)
         if: github.ref_name == 'master'
         run: |
           cd android
