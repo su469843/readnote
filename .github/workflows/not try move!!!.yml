@@ -5,34 +5,32 @@ on:
     branches:
       - beta
       - master
+  pull_request:
+    types: [closed]
+    branches:
+      - master
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') == false  # 普通推送不触发，只跑 CI 构建
 
     steps:
-      - name: 拉取代码
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-
       - name: 设置 JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - name: 安装依赖
         run: npm ci
-
       - name: 解码 Keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -di > ${{ runner.temp }}/keystore.jks
-
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -di > ${{ runner.temp }}/keystore.jks
       - name: 构建 Release APK
         run: |
           cd android
@@ -42,9 +40,44 @@ jobs:
             -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
             -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
             -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+      - name: 生成 MD5
+        run: |
+          cd android/app/build/outputs/apk/release/
+          md5sum app-release.apk > app-release.apk.md5
+          cat app-release.apk.md5
 
-      - name: 上传 APK
-        uses: actions/upload-artifact@v4
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')  # 只有 tag 推送才触发发布
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
         with:
-          name: app-${{ github.ref_name }}-${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/*.apk
+          name: app-release
+          path: app-release/
+
+      - name: 生成 MD5
+        run: |
+          cd app-release
+          md5sum app-release.apk > app-release.apk.md5
+
+      - name: 发布到 GitHub Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            ## 📦 版本发布说明
+            - 基于 tag: ${{ github.ref_name }}
+            - 构建时间: $(date)
+            - 包含 MD5 校验文件
+          draft: true  # 先创建草稿，方便手动检查
+          prerelease: ${{ contains(github.ref_name, 'beta') }}  # 如果tag含beta则为预发布
+          files: |
+            app-release/app-release.apk
+            app-release/app-release.apk.md5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
