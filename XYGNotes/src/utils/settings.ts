@@ -5,6 +5,8 @@ const SETTINGS_KEY = '@xyg_notes_settings';
 
 const defaultSettings: AppSettings = {
   ttsEndpoint: '',
+  ttsApiKey: '',
+  ttsVoice: 'zh-CN-XiaoxiaoNeural',
 };
 
 export async function loadSettings(): Promise<AppSettings> {

@@ -29,6 +29,8 @@ export interface TTSConfig {
 
 export interface AppSettings {
   ttsEndpoint: string;
+  ttsApiKey: string;
+  ttsVoice: string;
 }
 
 export type RootStackParamList = {

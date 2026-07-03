@@ -1,76 +1,104 @@
 import {NativeModules, Platform} from 'react-native';
+import RNFS from 'react-native-fs';
 import {loadSettings} from './settings';
 
 const {XYGTTS} = NativeModules;
 
 /**
  * TTS Manager - 支持三种 TTS 来源：
- * 1. 自定义 TTS 端点（用户在设置中配置的 HTTP API）
- * 2. Android 原生 TTS（通过 NativeModules.XYGTTS 桥接）
- * 3. Web Speech API（React Native 不支持，此处作为概念保留，实际使用系统 TTS 回退）
+ * 1. Edge TTS Cloudflare Worker（OpenAI 兼容 API）
+ * 2. Android 原生 TTS（系统内置 TextToSpeech）
+ * 3. Web Speech API（兜底回退）
+ *
+ * Edge TTS API 格式（OpenAI 兼容）：
+ *   POST https://<worker>/v1/audio/speech
+ *   Authorization: Bearer <api-key>
+ *   Body: { model, input, voice, speed, response_format }
+ *   返回: MP3 二进制音频
  */
 
 export async function speakText(text: string): Promise<void> {
   const settings = await loadSettings();
 
-  // 如果配置了自定义 TTS 端点，使用 HTTP API 调用
+  // 如果配置了 Edge TTS 端点，使用 OpenAI 兼容 API
   if (settings.ttsEndpoint) {
-    await speakViaEndpoint(settings.ttsEndpoint, text);
+    await speakViaEdgeTTS(settings, text);
     return;
   }
 
   // 回退到 Android 原生 TTS
   if (Platform.OS === 'android' && XYGTTS) {
-    XYGTTS.speak(text);
+    await XYGTTS.speak(text);
     return;
   }
 
-  // 最终回退：使用系统内置 TTS 或 Web Speech API
-  await speakViaSystem(text);
+  // 最终回退
+  await speakViaWebSpeech(text);
 }
 
-async function speakViaEndpoint(endpoint: string, text: string): Promise<void> {
-  const response = await fetch(endpoint, {
+async function speakViaEdgeTTS(
+  settings: {ttsEndpoint: string; ttsApiKey: string; ttsVoice: string},
+  text: string,
+): Promise<void> {
+  const baseUrl = settings.ttsEndpoint.replace(/\/+$/, '');
+  const url = `${baseUrl}/v1/audio/speech`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (settings.ttsApiKey) {
+    headers['Authorization'] = `Bearer ${settings.ttsApiKey}`;
+  }
+
+  const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
-      text,
-      lang: 'zh-CN',
-      // 后续可根据实际 TTS SDK 格式调整请求体
+      model: 'tts-1',
+      input: text,
+      voice: settings.ttsVoice || 'zh-CN-XiaoxiaoNeural',
+      response_format: 'mp3',
+      speed: 1.0,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`TTS endpoint error: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`Edge TTS error ${response.status}: ${errorText}`);
   }
 
-  // 如果返回音频数据，播放音频
-  // 此处预留音频播放逻辑，具体实现取决于 TTS SDK 返回格式
-  const audioData = await response.arrayBuffer();
-  // Play audio via native module or other audio player
+  // 将 MP3 保存为临时文件，通过原生 MediaPlayer 播放
+  const tempPath = `${RNFS.CachesDirectoryPath}/tts_${Date.now()}.mp3`;
+
+  // 读取响应为 base64
+  const blob = await response.blob();
+  const reader = new FileReader();
+  const base64 = await new Promise<string>((resolve, reject) => {
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64Data = result.split(',')[1] || result;
+      resolve(base64Data);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+  await RNFS.writeFile(tempPath, base64, 'base64');
+
+  // 通过原生模块播放 MP3 文件
   if (Platform.OS === 'android' && XYGTTS) {
-    XYGTTS.playAudio(
-      Array.from(new Uint8Array(audioData)),
-    );
+    await XYGTTS.playAudioFile(tempPath);
   }
 }
 
-async function speakViaSystem(text: string): Promise<void> {
-  if (Platform.OS === 'android' && XYGTTS) {
-    XYGTTS.speak(text);
-    return;
-  }
-
-  // Web 环境回退：使用 Web Speech API
+async function speakViaWebSpeech(text: string): Promise<void> {
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
     window.speechSynthesis.speak(utterance);
     return;
   }
-
   throw new Error('No TTS engine available');
 }
 
@@ -83,11 +111,7 @@ export function stopSpeaking(): void {
   }
 }
 
-/**
- * 提取纯文本内容（去除 HTML 标签等富文本标记）
- */
 export function extractPlainText(htmlContent: string): string {
-  // 简单去除 HTML 标签
   return htmlContent
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')

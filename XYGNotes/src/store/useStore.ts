@@ -20,7 +20,7 @@ interface AppState {
 
 export const useStore = create<AppState>((set, get) => ({
   notes: [],
-  settings: {ttsEndpoint: ''},
+  settings: {ttsEndpoint: '', ttsApiKey: '', ttsVoice: 'zh-CN-XiaoxiaoNeural'},
   isLoading: false,
 
   setNotes: (notes) => set({notes}),
