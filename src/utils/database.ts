@@ -21,7 +21,7 @@ function getSQLite() {
 
 // 检查原生模块是否可用
 export function isSQLiteAvailable(): boolean {
-  return !!NativeModules.SQLite;
+  return !!(NativeModules.SQLitePlugin || NativeModules.SQLite);
 }
 
 let db: any = null;
