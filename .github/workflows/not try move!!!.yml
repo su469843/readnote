@@ -39,7 +39,7 @@ jobs:
       # 安装 Android SDK
       - name: 安装 Android SDK
         run: |
-          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       # Gradle 缓存（加速构建）
       - name: 缓存 Gradle
