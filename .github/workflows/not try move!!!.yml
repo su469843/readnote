@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
@@ -55,57 +57,47 @@ jobs:
       - name: 安装 JS 依赖
         run: npm ci
 
-      # 读取 package.json 中的版本号并校验
-      - name: 读取并校验版本号
+      # 从 git tag 检测版本号
+      - name: 检测版本号
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          BRANCH="${{ github.ref_name }}"
-          echo "版本号: $VERSION"
-          echo "分支: $BRANCH"
+          # 如果是 tag 推送，直接用 tag 名
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            # 分支推送，获取该分支上最新的 tag
+            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          fi
 
-          # 判断版本号是否包含 beta
-          if echo "$VERSION" | grep -qi "beta"; then
+          if [ -z "$TAG" ]; then
+            echo "::warning::未找到任何 git tag，跳过发布"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 去掉 v 前缀得到版本号
+          VERSION="${TAG#v}"
+          echo "Tag: $TAG"
+          echo "版本号: $VERSION"
+
+          # 判断是否包含 beta
+          if echo "$TAG" | grep -qi "beta"; then
             IS_BETA="true"
           else
             IS_BETA="false"
           fi
 
-          # 校验：beta 分支的版本号必须包含 beta
-          if [ "$BRANCH" = "beta" ] && [ "$IS_BETA" != "true" ]; then
-            echo "::error::beta 分支的版本号($VERSION)必须包含 'beta' 标识符，跳过发布"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # 校验：master 分支的版本号不能包含 beta
-          if [ "$BRANCH" = "master" ] && [ "$IS_BETA" = "true" ]; then
-            echo "::error::master 分支的版本号($VERSION)不能包含 'beta' 标识符，跳过发布"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
           echo "should_publish=true" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "is_beta=$IS_BETA" >> $GITHUB_OUTPUT
-          echo "版本号校验通过 ✓"
+          echo "版本号检测通过 ✓ ($TAG, beta=$IS_BETA)"
 
       - name: 解码 Keystore
-        if: github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/')
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -di > ${{ runner.temp }}/keystore.jks
 
-      - name: 构建 Release APK (beta, debug签名)
-        if: github.ref_name == 'beta'
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease
-
-      - name: 构建 Release APK (master/tag, 正式签名)
-        if: github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/')
+      - name: 构建 Release APK
         run: |
           cd android
           chmod +x gradlew
@@ -126,8 +118,8 @@ jobs:
         if: steps.version.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
           prerelease: ${{ steps.version.outputs.is_beta == 'true' }}
           generate_release_notes: true
           files: |
