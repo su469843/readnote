@@ -1,11 +1,14 @@
-import React, {useEffect} from 'react';
-import {StatusBar, Alert} from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {StatusBar, Alert, View} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
 import NoteDetailScreen from './src/screens/NoteDetailScreen';
 import PDFViewerScreen from './src/screens/PDFViewerScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import SSHListScreen from './src/screens/SSHListScreen';
+import SSHConnectScreen from './src/screens/SSHConnectScreen';
+import TerminalScreen from './src/screens/TerminalScreen';
 import {initDatabase} from './src/utils/database';
 import {ensureNotesDir} from './src/utils/fileManager';
 import {useStore} from './src/store/useStore';
@@ -43,6 +46,9 @@ export default function App() {
         <Stack.Screen name="NoteDetail" component={NoteDetailScreen} />
         <Stack.Screen name="PDFViewer" component={PDFViewerScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="SSHList" component={SSHListScreen} />
+        <Stack.Screen name="SSHConnect" component={SSHConnectScreen} />
+        <Stack.Screen name="Terminal" component={TerminalScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

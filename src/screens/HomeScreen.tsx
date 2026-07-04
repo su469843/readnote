@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect} from 'react';
+import React, {useCallback, useState} from 'react';
 import {
   View,
   Text,
@@ -10,16 +10,19 @@ import {
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import NoteCard from '../components/NoteCard';
+import Sidebar from '../components/Sidebar';
 import {useStore} from '../store/useStore';
 import {getAllNotes, createNote, deleteNote} from '../utils/database';
 import {deleteNoteFiles} from '../utils/fileManager';
 import {RootStackParamList} from '../types';
+import {Colors, Spacing, FontSize, BorderRadius, Shadow} from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const {notes, setNotes, removeNote} = useStore();
+  const {notes, setNotes, removeNote, terminalMode} = useStore();
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -37,7 +40,11 @@ export default function HomeScreen() {
     navigation.navigate('NoteDetail', {noteId: id});
   };
 
-  const handleDeleteNote = (id: number, pdfPath: string | null, annotationsPath: string | null) => {
+  const handleDeleteNote = (
+    id: number,
+    pdfPath: string | null,
+    annotationsPath: string | null,
+  ) => {
     Alert.alert('删除笔记', '确定要删除这条笔记吗？', [
       {text: '取消', style: 'cancel'},
       {
@@ -55,7 +62,16 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>XYG 笔记</Text>
+        <View style={styles.headerLeft}>
+          {terminalMode && (
+            <TouchableOpacity
+              onPress={() => setSidebarVisible(true)}
+              style={styles.menuBtn}>
+              <Text style={styles.menuIcon}>☰</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>ReadNote</Text>
+        </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('Settings')}
           style={styles.settingsBtn}>
@@ -69,7 +85,9 @@ export default function HomeScreen() {
         renderItem={({item}) => (
           <NoteCard
             note={item}
-            onPress={() => navigation.navigate('NoteDetail', {noteId: item.id})}
+            onPress={() =>
+              navigation.navigate('NoteDetail', {noteId: item.id})
+            }
             onLongPress={() =>
               handleDeleteNote(item.id, item.pdf_path, item.json_notes_path)
             }
@@ -90,6 +108,11 @@ export default function HomeScreen() {
         activeOpacity={0.8}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      <Sidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+      />
     </View>
   );
 }
@@ -97,23 +120,35 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.bg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     paddingTop: 48,
-    paddingBottom: 12,
-    backgroundColor: '#fff',
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.bgCard,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: Colors.border,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuBtn: {
+    marginRight: Spacing.md,
+    padding: 2,
+  },
+  menuIcon: {
+    fontSize: 22,
+    color: Colors.textPrimary,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: FontSize.title,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   settingsBtn: {
     padding: 4,
@@ -122,7 +157,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   list: {
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
     paddingBottom: 80,
   },
   empty: {
@@ -130,13 +165,13 @@ const styles = StyleSheet.create({
     marginTop: 120,
   },
   emptyText: {
-    fontSize: 18,
-    color: '#999',
+    fontSize: FontSize.lg,
+    color: Colors.textSecondary,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#bbb',
-    marginTop: 8,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: Spacing.sm,
   },
   fab: {
     position: 'absolute',
@@ -145,18 +180,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4A90D9',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#4A90D9',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Shadow.md,
   },
   fabText: {
     fontSize: 28,
-    color: '#fff',
+    color: Colors.textInverse,
     lineHeight: 30,
   },
 });

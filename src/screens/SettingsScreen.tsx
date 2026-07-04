@@ -7,9 +7,13 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Switch,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {useStore} from '../store/useStore';
+import {Colors, Spacing, FontSize, BorderRadius, Shadow} from '../theme';
+
+const APP_VERSION = '1.3.1';
 
 const VOICE_OPTIONS = [
   {label: '晓晓 (温暖女声)', value: 'zh-CN-XiaoxiaoNeural'},
@@ -20,8 +24,13 @@ const VOICE_OPTIONS = [
 ];
 
 export default function SettingsScreen() {
-  const navigation = useNavigation();
-  const {settings, saveSettingsToStorage} = useStore();
+  const navigation = useNavigation<any>();
+  const {
+    settings,
+    terminalMode,
+    saveSettingsToStorage,
+    setTerminalMode,
+  } = useStore();
   const [ttsEndpoint, setTtsEndpoint] = useState(settings.ttsEndpoint);
   const [ttsApiKey, setTtsApiKey] = useState(settings.ttsApiKey);
   const [ttsVoice, setTtsVoice] = useState(settings.ttsVoice);
@@ -41,6 +50,10 @@ export default function SettingsScreen() {
     Alert.alert('提示', '设置已保存', [{text: '确定'}]);
   };
 
+  const handleTerminalToggle = (value: boolean) => {
+    setTerminalMode(value);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -52,8 +65,38 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* 终端模式 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TTS 语音朗读</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🖥 终端模式</Text>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowTitle}>开启终端模式</Text>
+              <Text style={styles.rowDesc}>
+                启用后可在侧边栏管理 SSH 连接
+              </Text>
+            </View>
+            <Switch
+              value={terminalMode}
+              onValueChange={handleTerminalToggle}
+              trackColor={{false: '#D1D5DB', true: Colors.primaryLight}}
+              thumbColor={terminalMode ? Colors.primary : '#F9FAFB'}
+            />
+          </View>
+
+          {terminalMode && (
+            <TouchableOpacity
+              style={styles.sshManageBtn}
+              onPress={() => navigation.navigate('SSHList')}>
+              <Text style={styles.sshManageText}>管理 SSH 连接 →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* TTS 设置 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔊 TTS 语音朗读</Text>
 
           <Text style={styles.label}>Edge TTS 服务地址</Text>
           <TextInput
@@ -61,7 +104,7 @@ export default function SettingsScreen() {
             value={ttsEndpoint}
             onChangeText={setTtsEndpoint}
             placeholder="https://your-worker.workers.dev"
-            placeholderTextColor="#bbb"
+            placeholderTextColor={Colors.textTertiary}
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -72,7 +115,7 @@ export default function SettingsScreen() {
             value={ttsApiKey}
             onChangeText={setTtsApiKey}
             placeholder="Bearer Token（留空则不验证）"
-            placeholderTextColor="#bbb"
+            placeholderTextColor={Colors.textTertiary}
             autoCapitalize="none"
             autoCorrect={false}
             secureTextEntry
@@ -108,12 +151,23 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* 关于 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>关于</Text>
-          <Text style={styles.aboutText}>XYG 笔记 v1.0.0</Text>
-          <Text style={styles.aboutText}>
-            TTS：Edge TTS Worker / 系统内置 / Web Speech
-          </Text>
+          <Text style={styles.sectionTitle}>ℹ️ 关于</Text>
+          <View style={styles.aboutRow}>
+            <Text style={styles.aboutLabel}>应用版本</Text>
+            <Text style={styles.aboutValue}>v{APP_VERSION}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.aboutRow}>
+            <Text style={styles.aboutLabel}>TTS 引擎</Text>
+            <Text style={styles.aboutValue}>Edge TTS / 系统内置 / Web Speech</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.aboutRow}>
+            <Text style={styles.aboutLabel}>运行平台</Text>
+            <Text style={styles.aboutValue}>Android</Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -123,27 +177,28 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.bg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     paddingTop: 48,
-    paddingBottom: 12,
-    backgroundColor: '#fff',
+    paddingBottom: Spacing.md,
+    backgroundColor: Colors.bgCard,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: Colors.border,
   },
   backText: {
-    fontSize: 16,
-    color: '#4A90D9',
+    fontSize: FontSize.md,
+    color: Colors.primary,
+    fontWeight: '500',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: Colors.textPrimary,
   },
   placeholder: {
     width: 50,
@@ -152,80 +207,132 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    backgroundColor: '#fff',
-    marginTop: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
+    backgroundColor: Colors.bgCard,
+    marginTop: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    ...Shadow.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: FontSize.md,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 12,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  rowLeft: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  rowTitle: {
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+  },
+  rowDesc: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  sshManageBtn: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  sshManageText: {
+    color: Colors.textInverse,
+    fontSize: FontSize.md,
+    fontWeight: '500',
   },
   label: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    marginTop: 12,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#333',
-    backgroundColor: '#fafafa',
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+    backgroundColor: Colors.bg,
   },
   voiceList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
     marginTop: 4,
   },
   voiceOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fafafa',
+    borderColor: Colors.border,
+    backgroundColor: Colors.bg,
   },
   voiceOptionActive: {
-    backgroundColor: '#4A90D9',
-    borderColor: '#4A90D9',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   voiceOptionText: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: FontSize.sm,
+    color: Colors.textPrimary,
   },
   voiceOptionTextActive: {
-    color: '#fff',
+    color: Colors.textInverse,
   },
   hint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 12,
-    lineHeight: 18,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: Spacing.md,
+    lineHeight: 16,
   },
   saveBtn: {
-    marginTop: 16,
-    backgroundColor: '#4A90D9',
-    borderRadius: 8,
-    paddingVertical: 12,
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
     alignItems: 'center',
   },
   saveBtnText: {
-    color: '#fff',
-    fontSize: 16,
+    color: Colors.textInverse,
+    fontSize: FontSize.md,
     fontWeight: '600',
   },
-  aboutText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  aboutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  aboutLabel: {
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+  },
+  aboutValue: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
   },
 });

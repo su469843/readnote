@@ -33,9 +33,28 @@ export interface AppSettings {
   ttsVoice: string;
 }
 
+/** SSH 连接认证方式 */
+export type SSHAuthType = 'password' | 'key';
+
+/** SSH 连接配置 */
+export interface SSHConnection {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  authType: SSHAuthType;
+  password: string;
+  privateKey: string;
+  createdAt: string;
+}
+
 export type RootStackParamList = {
   Home: undefined;
   NoteDetail: {noteId?: number};
   PDFViewer: {pdfPath: string; annotationsPath: string};
   Settings: undefined;
+  SSHList: undefined;
+  SSHConnect: {connectionId?: string};
+  Terminal: {connectionId: string};
 };
