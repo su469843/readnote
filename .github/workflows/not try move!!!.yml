@@ -28,6 +28,142 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # 设置 Android SDK 环境变量
+      - name: 设置 Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
+
+      # 安装 Android SDK
+      - name: 安装 Android SDK
+        run: |
+          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+
+      # Gradle 缓存（加速构建）
+      - name: 缓存 Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
+
+      - name: 安装 JS 依赖
+        run: npm ci
+
+      # 读取 package.json 中的版本号并校验
+      - name: 读取并校验版本号
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="${{ github.ref_name }}"
+          echo "版本号: $VERSION"
+          echo "分支: $BRANCH"
+
+          # 判断版本号是否包含 beta
+          if echo "$VERSION" | grep -qi "beta"; then
+            IS_BETA="true"
+          else
+            IS_BETA="false"
+          fi
+
+          # 校验：beta 分支的版本号必须包含 beta
+          if [ "$BRANCH" = "beta" ] && [ "$IS_BETA" != "true" ]; then
+            echo "::error::beta 分支的版本号($VERSION)必须包含 'beta' 标识符，跳过发布"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 校验：master 分支的版本号不能包含 beta
+          if [ "$BRANCH" = "master" ] && [ "$IS_BETA" = "true" ]; then
+            echo "::error::master 分支的版本号($VERSION)不能包含 'beta' 标识符，跳过发布"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "should_publish=true" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_beta=$IS_BETA" >> $GITHUB_OUTPUT
+          echo "版本号校验通过 ✓"
+
+      - name: 解码 Keystore
+        if: github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -di > ${{ runner.temp }}/keystore.jks
+
+      - name: 构建 Release APK (beta, debug签名)
+        if: github.ref_name == 'beta'
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: 构建 Release APK (master/tag, 正式签名)
+        if: github.ref_name == 'master' || startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PKEYSTORE_PATH=${{ runner.temp }}/keystore.jks \
+            -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
+            -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
+            -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+
+      - name: 上传 APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ github.ref_name }}-${{ github.run_number }}
+          path: android/app/build/outputs/apk/release/*.apk
+
+      # 发布到 GitHub Release
+      - name: 发布到 Release
+        if: steps.version.outputs.should_publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          prerelease: ${{ steps.version.outputs.is_beta == 'true' }}
+          generate_release_notes: true
+          files: |
+            android/app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+name: Android Release Build
+
+on:
+  push:
+    branches:
+      - beta
+      - master
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 设置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       # 🔥 关键：设置 Android SDK 环境变量
       - name: 设置 Android SDK
         run: |
