@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {StatusBar} from 'react-native';
+import {StatusBar, Alert} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
@@ -18,9 +18,17 @@ export default function App() {
 
   useEffect(() => {
     async function init() {
-      await initDatabase();
-      await ensureNotesDir();
-      await loadSettingsFromStorage();
+      try {
+        await initDatabase();
+        await ensureNotesDir();
+        await loadSettingsFromStorage();
+      } catch (error) {
+        console.error('App initialization failed:', error);
+        Alert.alert(
+          '初始化失败',
+          '应用初始化时出现问题，请重启应用。' + (error instanceof Error ? error.message : ''),
+        );
+      }
     }
     init();
   }, [loadSettingsFromStorage]);
