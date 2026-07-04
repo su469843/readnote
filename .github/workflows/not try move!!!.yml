@@ -8,6 +8,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
@@ -28,7 +33,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 🔥 关键：设置 Android SDK 环境变量
+      # 设置 Android SDK 环境变量
       - name: 设置 Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
@@ -36,12 +41,12 @@ jobs:
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
           echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
 
-      # 🔥 关键：安装 Android 33 和 Build Tools 33
+      # 安装 Android SDK
       - name: 安装 Android SDK
         run: |
-          sdkmanager "platforms;android-33" "build-tools;33.0.0" "platform-tools"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
-      # 🔥 关键：Gradle 缓存（加速构建，省时间）
+      # Gradle 缓存（加速构建）
       - name: 缓存 Gradle
         uses: actions/cache@v4
         with:
@@ -54,6 +59,42 @@ jobs:
 
       - name: 安装 JS 依赖
         run: npm ci
+
+      # 从 git tag 检测版本号
+      - name: 检测版本号
+        id: version
+        run: |
+          # 如果是 tag 推送，直接用 tag 名
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            # 分支推送，获取该分支上最新的 tag
+            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$TAG" ]; then
+            echo "::warning::未找到任何 git tag，跳过发布"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 去掉 v 前缀得到版本号
+          VERSION="${TAG#v}"
+          echo "Tag: $TAG"
+          echo "版本号: $VERSION"
+
+          # 判断是否包含 beta
+          if echo "$TAG" | grep -qi "beta"; then
+            IS_BETA="true"
+          else
+            IS_BETA="false"
+          fi
+
+          echo "should_publish=true" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "is_beta=$IS_BETA" >> $GITHUB_OUTPUT
+          echo "版本号检测通过 ✓ ($TAG, beta=$IS_BETA)"
 
       - name: 解码 Keystore
         run: |
@@ -69,8 +110,22 @@ jobs:
             -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
             -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
 
-      - name: 上传 APK
+      - name: 上传 APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-${{ github.ref_name }}-${{ github.run_number }}
           path: android/app/build/outputs/apk/release/*.apk
+
+      # 发布到 GitHub Release
+      - name: 发布到 Release
+        if: steps.version.outputs.should_publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          prerelease: ${{ steps.version.outputs.is_beta == 'true' }}
+          generate_release_notes: true
+          files: |
+            android/app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
