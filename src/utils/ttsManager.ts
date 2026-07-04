@@ -1,5 +1,5 @@
 import {NativeModules, Platform} from 'react-native';
-import RNFS from 'react-native-fs';
+import {getCachesDir, rnfsWriteFile} from './fileManager';
 import {loadSettings} from './settings';
 
 const {XYGTTS} = NativeModules;
@@ -69,7 +69,7 @@ async function speakViaEdgeTTS(
   }
 
   // 将 MP3 保存为临时文件，通过原生 MediaPlayer 播放
-  const tempPath = `${RNFS.CachesDirectoryPath}/tts_${Date.now()}.mp3`;
+  const tempPath = `${getCachesDir()}/tts_${Date.now()}.mp3`;
 
   // 读取响应为 base64
   const blob = await response.blob();
@@ -84,7 +84,7 @@ async function speakViaEdgeTTS(
     reader.readAsDataURL(blob);
   });
 
-  await RNFS.writeFile(tempPath, base64, 'base64');
+  await rnfsWriteFile(tempPath, base64, 'base64');
 
   // 通过原生模块播放 MP3 文件
   if (Platform.OS === 'android' && XYGTTS) {
