@@ -31,13 +31,22 @@ export default function HomeScreen() {
   );
 
   const loadNotes = async () => {
-    const allNotes = await getAllNotes();
-    setNotes(allNotes);
+    try {
+      const allNotes = await getAllNotes();
+      setNotes(allNotes);
+    } catch (e) {
+      console.warn('加载笔记失败:', e);
+    }
   };
 
   const handleCreateNote = async () => {
-    const id = await createNote();
-    navigation.navigate('NoteDetail', {noteId: id});
+    try {
+      const id = await createNote();
+      navigation.navigate('NoteDetail', {noteId: id});
+    } catch (e) {
+      console.warn('创建笔记失败:', e);
+      Alert.alert('错误', '创建笔记失败，请检查数据库是否可用');
+    }
   };
 
   const handleDeleteNote = (
@@ -51,9 +60,13 @@ export default function HomeScreen() {
         text: '删除',
         style: 'destructive',
         onPress: async () => {
-          await deleteNote(id);
-          await deleteNoteFiles(pdfPath, annotationsPath);
-          removeNote(id);
+          try {
+            await deleteNote(id);
+            await deleteNoteFiles(pdfPath, annotationsPath);
+            removeNote(id);
+          } catch (e) {
+            console.warn('删除笔记失败:', e);
+          }
         },
       },
     ]);
@@ -100,6 +113,10 @@ export default function HomeScreen() {
             <Text style={styles.emptySubtext}>点击下方 + 按钮创建</Text>
           </View>
         }
+        windowSize={5}
+        maxToRenderPerBatch={5}
+        initialNumToRender={5}
+        removeClippedSubviews={true}
       />
 
       <TouchableOpacity

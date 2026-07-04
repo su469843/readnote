@@ -27,7 +27,7 @@ export default function Sidebar({visible, onClose}: SidebarProps) {
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(translateX, {
         toValue: visible ? 0 : -SIDEBAR_WIDTH,
         duration: 250,
@@ -38,7 +38,10 @@ export default function Sidebar({visible, onClose}: SidebarProps) {
         duration: 250,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+    animation.start();
+    // 组件卸载时停止原生动画，防止 native 驱动层 dangling reference 导致闪退
+    return () => animation.stop();
   }, [visible, translateX, overlayOpacity]);
 
   const navigateTo = (screen: string) => {

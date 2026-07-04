@@ -71,8 +71,11 @@ function checkDb() {
 
 export async function getAllNotes(): Promise<Note[]> {
   checkDb();
+  // LIMIT 100 防笔记过多撑爆内存；substr(content,1,200) 只取前 200 字符作预览
   const [results] = await db.executeSql(
-    'SELECT * FROM notes ORDER BY updated_at DESC',
+    `SELECT id, title, substr(content, 1, 200) AS content,
+            pdf_path, json_notes_path, created_at, updated_at
+     FROM notes ORDER BY updated_at DESC LIMIT 100`,
   );
   const notes: Note[] = [];
   for (let i = 0; i < results.rows.length; i++) {

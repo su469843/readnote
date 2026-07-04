@@ -38,20 +38,28 @@ export default function NoteDetailScreen() {
   }, [noteId]);
 
   const loadNote = async () => {
-    const data = await getNoteById(noteId);
-    if (data) {
-      setNote(data);
-      setTitle(data.title);
-      setContent(data.content);
+    try {
+      const data = await getNoteById(noteId);
+      if (data) {
+        setNote(data);
+        setTitle(data.title);
+        setContent(data.content);
+      }
+    } catch (e) {
+      console.warn('加载笔记详情失败:', e);
     }
   };
 
   const saveNote = async () => {
     if (!note) return;
-    await updateNote(note.id, {title, content});
-    const updated = {...note, title, content};
-    setNote(updated);
-    updateNoteInList(updated);
+    try {
+      await updateNote(note.id, {title, content});
+      const updated = {...note, title, content};
+      setNote(updated);
+      updateNoteInList(updated);
+    } catch (e) {
+      console.warn('保存笔记失败:', e);
+    }
   };
 
   const handleAttachPDF = async () => {
@@ -97,7 +105,8 @@ export default function NoteDetailScreen() {
   };
 
   const handleBack = () => {
-    saveNote();
+    // 先保存再返回，但不用 await 阻塞返回操作
+    saveNote().catch((e) => console.warn('返回前自动保存失败:', e));
     navigation.goBack();
   };
 

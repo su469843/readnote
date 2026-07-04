@@ -42,12 +42,17 @@ export default function SettingsScreen() {
   }, [settings.ttsEndpoint, settings.ttsApiKey, settings.ttsVoice]);
 
   const handleSave = async () => {
-    await saveSettingsToStorage({
-      ttsEndpoint: ttsEndpoint.trim(),
-      ttsApiKey: ttsApiKey.trim(),
-      ttsVoice,
-    });
-    Alert.alert('提示', '设置已保存', [{text: '确定'}]);
+    try {
+      await saveSettingsToStorage({
+        ttsEndpoint: ttsEndpoint.trim(),
+        ttsApiKey: ttsApiKey.trim(),
+        ttsVoice,
+      });
+      Alert.alert('提示', '设置已保存', [{text: '确定'}]);
+    } catch (e) {
+      console.warn('保存设置失败:', e);
+      Alert.alert('错误', '保存设置失败');
+    }
   };
 
   const handleTerminalToggle = (value: boolean) => {

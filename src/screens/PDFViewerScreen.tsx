@@ -18,7 +18,7 @@ const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 export default function PDFViewerScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation();
-  const {pdfPath, annotationsPath} = route.params;
+  const {pdfPath = '', annotationsPath = ''} = route.params ?? {};
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -38,6 +38,10 @@ export default function PDFViewerScreen() {
 
   React.useEffect(() => {
     loadAnnotationData();
+    // 离开页面时释放标注数据（加快 GC）
+    return () => {
+      setAnnotationData({pdfName: '', annotations: [], version: '1.0'});
+    };
   }, [loadAnnotationData]);
 
   const handleAnnotationAdd = async (annotation: Annotation) => {
@@ -46,7 +50,11 @@ export default function PDFViewerScreen() {
       annotations: [...annotationData.annotations, annotation],
     };
     setAnnotationData(updated);
-    await saveAnnotations(annotationsPath, updated);
+    try {
+      await saveAnnotations(annotationsPath, updated);
+    } catch (e) {
+      console.warn('保存标注失败:', e);
+    }
   };
 
   const handleToggleAnnotate = () => {
@@ -61,7 +69,10 @@ export default function PDFViewerScreen() {
       ),
     };
     setAnnotationData(updated);
-    saveAnnotations(annotationsPath, updated);
+    // fire-and-forget with catch 防止未处理的 Promise rejection
+    saveAnnotations(annotationsPath, updated).catch((e) =>
+      console.warn('清除标注保存失败:', e),
+    );
   };
 
   return (
