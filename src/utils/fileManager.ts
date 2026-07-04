@@ -1,12 +1,20 @@
 import RNFS from 'react-native-fs';
 import {AnnotationFile} from '../types';
 
-const NOTES_DIR = `${RNFS.DocumentDirectoryPath}/notes`;
+// 延迟获取路径，避免模块加载时原生模块未就绪
+function getNotesDir(): string {
+  return `${RNFS.DocumentDirectoryPath || '/data/data'}/notes`;
+}
 
 export async function ensureNotesDir(): Promise<void> {
-  const exists = await RNFS.exists(NOTES_DIR);
-  if (!exists) {
-    await RNFS.mkdir(NOTES_DIR);
+  try {
+    const NOTES_DIR = getNotesDir();
+    const exists = await RNFS.exists(NOTES_DIR);
+    if (!exists) {
+      await RNFS.mkdir(NOTES_DIR);
+    }
+  } catch (e) {
+    console.warn('ensureNotesDir 失败:', e);
   }
 }
 
@@ -15,7 +23,7 @@ export async function copyPdfToNotes(
   fileName: string,
 ): Promise<string> {
   await ensureNotesDir();
-  const destPath = `${NOTES_DIR}/${fileName}`;
+  const destPath = `${getNotesDir()}/${fileName}`;
   await RNFS.copyFile(sourceUri, destPath);
   return destPath;
 }

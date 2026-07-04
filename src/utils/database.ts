@@ -1,36 +1,77 @@
-import SQLite, {
-  SQLiteDatabase,
-  ResultSet,
-} from 'react-native-sqlite-storage';
+import {NativeModules} from 'react-native';
 import {Note} from '../types';
 
-SQLite.enablePromise(true);
+// 延迟加载 SQLite，避免模块加载时原生模块未就绪导致崩溃
+let SQLite: any = null;
+let sqliteEnabled = false;
 
-let db: SQLiteDatabase;
+function getSQLite() {
+  if (!SQLite) {
+    try {
+      SQLite = require('react-native-sqlite-storage');
+      SQLite.enablePromise(true);
+      sqliteEnabled = true;
+    } catch (e) {
+      console.warn('react-native-sqlite-storage 加载失败:', e);
+      sqliteEnabled = false;
+    }
+  }
+  return SQLite;
+}
 
+// 检查原生模块是否可用
+export function isSQLiteAvailable(): boolean {
+  return !!NativeModules.SQLite;
+}
+
+let db: any = null;
 const DB_NAME = 'xyg_notes.db';
 
-export async function initDatabase(): Promise<void> {
-  db = await SQLite.openDatabase({
-    name: DB_NAME,
-    location: 'default',
-  });
+export async function initDatabase(): Promise<boolean> {
+  // 检查原生模块
+  if (!isSQLiteAvailable()) {
+    console.warn('SQLite 原生模块不可用，数据库功能将被禁用');
+    return false;
+  }
 
-  await db.executeSql(`
-    CREATE TABLE IF NOT EXISTS notes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL DEFAULT '',
-      content TEXT NOT NULL DEFAULT '',
-      pdf_path TEXT,
-      json_notes_path TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-    )
-  `);
+  try {
+    const sqlite = getSQLite();
+    if (!sqliteEnabled || !sqlite) {
+      console.warn('SQLite 初始化失败');
+      return false;
+    }
+
+    db = await sqlite.openDatabase({
+      name: DB_NAME,
+    });
+
+    await db.executeSql(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL DEFAULT '',
+        content TEXT NOT NULL DEFAULT '',
+        pdf_path TEXT,
+        json_notes_path TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      )
+    `);
+    return true;
+  } catch (error) {
+    console.error('数据库初始化失败:', error);
+    return false;
+  }
+}
+
+function checkDb() {
+  if (!db) {
+    throw new Error('数据库未初始化');
+  }
 }
 
 export async function getAllNotes(): Promise<Note[]> {
-  const [results]: [ResultSet] = await db.executeSql(
+  checkDb();
+  const [results] = await db.executeSql(
     'SELECT * FROM notes ORDER BY updated_at DESC',
   );
   const notes: Note[] = [];
@@ -41,7 +82,8 @@ export async function getAllNotes(): Promise<Note[]> {
 }
 
 export async function getNoteById(id: number): Promise<Note | null> {
-  const [results]: [ResultSet] = await db.executeSql(
+  checkDb();
+  const [results] = await db.executeSql(
     'SELECT * FROM notes WHERE id = ?',
     [id],
   );
@@ -55,7 +97,8 @@ export async function createNote(
   title: string = '',
   content: string = '',
 ): Promise<number> {
-  const [results]: [ResultSet] = await db.executeSql(
+  checkDb();
+  const [results] = await db.executeSql(
     'INSERT INTO notes (title, content) VALUES (?, ?)',
     [title, content],
   );
@@ -66,6 +109,7 @@ export async function updateNote(
   id: number,
   fields: Partial<Pick<Note, 'title' | 'content' | 'pdf_path' | 'json_notes_path'>>,
 ): Promise<void> {
+  checkDb();
   const sets: string[] = [];
   const values: any[] = [];
 
@@ -93,5 +137,6 @@ export async function updateNote(
 }
 
 export async function deleteNote(id: number): Promise<void> {
+  checkDb();
   await db.executeSql('DELETE FROM notes WHERE id = ?', [id]);
 }
