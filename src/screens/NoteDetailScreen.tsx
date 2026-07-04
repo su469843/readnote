@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import DocumentPicker from 'react-native-document-picker';
+import {pick, types, isErrorWithCode, errorCodes} from '@react-native-documents/picker';
 import TTSButton from '../components/TTSButton';
 import {useStore} from '../store/useStore';
 import {getNoteById, updateNote} from '../utils/database';
@@ -56,8 +56,8 @@ export default function NoteDetailScreen() {
 
   const handleAttachPDF = async () => {
     try {
-      const result = await DocumentPicker.pick({
-        type: [DocumentPicker.types.pdf],
+      const result = await pick({
+        type: [types.pdf],
       });
 
       if (result[0] && note) {
@@ -81,7 +81,7 @@ export default function NoteDetailScreen() {
         updateNoteInList(updated);
       }
     } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
+      if (!isErrorWithCode(err, errorCodes.E_CANCELED)) {
         Alert.alert('错误', 'PDF 文件选择失败');
       }
     }
