@@ -125,7 +125,18 @@ jobs:
           name: ${{ steps.version.outputs.tag }}
           prerelease: ${{ steps.version.outputs.is_beta == 'true' }}
           body: |
-            ReadNote ${{ steps.version.outputs.tag }} 正式版
+            ReadNote ${{ steps.version.outputs.tag }}
+
+            ## 下载
+
+            根据设备 CPU 架构选择对应 APK：
+
+            | 架构 | 适用设备 |
+            |------|---------|
+            | arm64-v8a | 主流手机/平板（推荐） |
+            | armeabi-v7a | 老旧设备 |
+            | x86_64 | 模拟器 / Intel 平板 |
+            | x86 | 老旧模拟器 |
           files: |
             android/app/build/outputs/apk/release/*.apk
         env:
