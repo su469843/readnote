@@ -37,6 +37,16 @@ android {
         versionCode 4
         versionName "1.3.1"
     }
+
+    // 按 CPU 架构拆分 APK，每个安装包只带对应架构的 so 库
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            universalApk false
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
