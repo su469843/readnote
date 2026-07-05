@@ -116,6 +116,23 @@ jobs:
           name: app-${{ github.ref_name }}-${{ github.run_number }}
           path: android/app/build/outputs/apk/release/*.apk
 
+      # 从 publish/CHANGELOG.md 提取当前版本的 Release body
+      - name: 提取版本详情
+        id: changelog
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          FILE="publish/CHANGELOG.md"
+          if [ -f "$FILE" ]; then
+            BODY=$(awk "/^## $TAG /{flag=1; next} /^## /{flag=0} flag" "$FILE")
+            echo "body<<EOF" >> $GITHUB_OUTPUT
+            echo "# ReadNote $TAG" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "$BODY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "body=ReadNote $TAG" >> $GITHUB_OUTPUT
+          fi
+
       # 发布到 GitHub Release
       - name: 发布到 Release
         if: steps.version.outputs.should_publish == 'true'
@@ -124,19 +141,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           prerelease: ${{ steps.version.outputs.is_beta == 'true' }}
-          body: |
-            ReadNote ${{ steps.version.outputs.tag }}
-
-            ## 下载
-
-            根据设备 CPU 架构选择对应 APK：
-
-            | 架构 | 适用设备 |
-            |------|---------|
-            | arm64-v8a | 主流手机/平板（推荐） |
-            | armeabi-v7a | 老旧设备 |
-            | x86_64 | 模拟器 / Intel 平板 |
-            | x86 | 老旧模拟器 |
+          body: ${{ steps.changelog.outputs.body }}
           files: |
             android/app/build/outputs/apk/release/*.apk
         env:
