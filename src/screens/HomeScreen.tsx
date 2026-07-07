@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect} from 'react';
+import React, {useCallback} from 'react';
 import {
   View,
   Text,
@@ -23,18 +23,21 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      const loadNotes = async () => {
+        const allNotes = await getAllNotes();
+        setNotes(allNotes);
+      };
       loadNotes();
-    }, []),
+    }, [setNotes]),
   );
-
-  const loadNotes = async () => {
-    const allNotes = await getAllNotes();
-    setNotes(allNotes);
-  };
 
   const handleCreateNote = async () => {
     const id = await createNote();
-    navigation.navigate('NoteDetail', {noteId: id});
+    if (id > 0) {
+      navigation.navigate('NoteDetail', {noteId: id});
+    } else {
+      Alert.alert('创建失败', '无法创建新笔记，请检查数据库是否正常');
+    }
   };
 
   const handleDeleteNote = (id: number, pdfPath: string | null, annotationsPath: string | null) => {

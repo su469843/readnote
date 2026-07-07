@@ -70,73 +70,96 @@ function checkDb() {
 }
 
 export async function getAllNotes(): Promise<Note[]> {
-  checkDb();
-  const [results] = await db.executeSql(
-    'SELECT * FROM notes ORDER BY updated_at DESC',
-  );
-  const notes: Note[] = [];
-  for (let i = 0; i < results.rows.length; i++) {
-    notes.push(results.rows.item(i));
+  try {
+    checkDb();
+    const [results] = await db.executeSql(
+      'SELECT * FROM notes ORDER BY updated_at DESC',
+    );
+    const notes: Note[] = [];
+    for (let i = 0; i < results.rows.length; i++) {
+      notes.push(results.rows.item(i));
+    }
+    return notes;
+  } catch (error) {
+    console.warn('获取笔记失败:', error);
+    return [];
   }
-  return notes;
 }
 
 export async function getNoteById(id: number): Promise<Note | null> {
-  checkDb();
-  const [results] = await db.executeSql(
-    'SELECT * FROM notes WHERE id = ?',
-    [id],
-  );
-  if (results.rows.length > 0) {
-    return results.rows.item(0);
+  try {
+    checkDb();
+    const [results] = await db.executeSql(
+      'SELECT * FROM notes WHERE id = ?',
+      [id],
+    );
+    if (results.rows.length > 0) {
+      return results.rows.item(0);
+    }
+    return null;
+  } catch (error) {
+    console.warn('获取笔记详情失败:', error);
+    return null;
   }
-  return null;
 }
 
 export async function createNote(
   title: string = '',
   content: string = '',
 ): Promise<number> {
-  checkDb();
-  const [results] = await db.executeSql(
-    'INSERT INTO notes (title, content) VALUES (?, ?)',
-    [title, content],
-  );
-  return results.insertId;
+  try {
+    checkDb();
+    const [results] = await db.executeSql(
+      'INSERT INTO notes (title, content) VALUES (?, ?)',
+      [title, content],
+    );
+    return results.insertId;
+  } catch (error) {
+    console.warn('创建笔记失败:', error);
+    return -1;
+  }
 }
 
 export async function updateNote(
   id: number,
   fields: Partial<Pick<Note, 'title' | 'content' | 'pdf_path' | 'json_notes_path'>>,
 ): Promise<void> {
-  checkDb();
-  const sets: string[] = [];
-  const values: any[] = [];
+  try {
+    checkDb();
+    const sets: string[] = [];
+    const values: any[] = [];
 
-  if (fields.title !== undefined) {
-    sets.push('title = ?');
-    values.push(fields.title);
-  }
-  if (fields.content !== undefined) {
-    sets.push('content = ?');
-    values.push(fields.content);
-  }
-  if (fields.pdf_path !== undefined) {
-    sets.push('pdf_path = ?');
-    values.push(fields.pdf_path);
-  }
-  if (fields.json_notes_path !== undefined) {
-    sets.push('json_notes_path = ?');
-    values.push(fields.json_notes_path);
-  }
+    if (fields.title !== undefined) {
+      sets.push('title = ?');
+      values.push(fields.title);
+    }
+    if (fields.content !== undefined) {
+      sets.push('content = ?');
+      values.push(fields.content);
+    }
+    if (fields.pdf_path !== undefined) {
+      sets.push('pdf_path = ?');
+      values.push(fields.pdf_path);
+    }
+    if (fields.json_notes_path !== undefined) {
+      sets.push('json_notes_path = ?');
+      values.push(fields.json_notes_path);
+    }
 
-  sets.push("updated_at = datetime('now','localtime')");
-  values.push(id);
+    sets.push("updated_at = datetime('now','localtime')");
+    values.push(id);
 
-  await db.executeSql(`UPDATE notes SET ${sets.join(', ')} WHERE id = ?`, values);
+    await db.executeSql(`UPDATE notes SET ${sets.join(', ')} WHERE id = ?`, values);
+  } catch (error) {
+    console.warn('更新笔记失败:', error);
+  }
 }
 
 export async function deleteNote(id: number): Promise<void> {
-  checkDb();
-  await db.executeSql('DELETE FROM notes WHERE id = ?', [id]);
+  try {
+    checkDb();
+    await db.executeSql('DELETE FROM notes WHERE id = ?', [id]);
+  } catch (error) {
+    console.warn('删除笔记失败:', error);
+  }
 }

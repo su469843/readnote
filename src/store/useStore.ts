@@ -18,7 +18,7 @@ interface AppState {
   saveSettingsToStorage: (settings: AppSettings) => Promise<void>;
 }
 
-export const useStore = create<AppState>((set, get) => ({
+export const useStore = create<AppState>((set) => ({
   notes: [],
   settings: {ttsEndpoint: '', ttsApiKey: '', ttsVoice: 'zh-CN-XiaoxiaoNeural'},
   isLoading: false,

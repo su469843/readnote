@@ -1,8 +1,14 @@
 import {NativeModules, Platform} from 'react-native';
-import {getCachesDir, rnfsWriteFile} from './fileManager';
+import RNFS from 'react-native-fs';
 import {loadSettings} from './settings';
 
-const {XYGTTS} = NativeModules;
+function getXYGTTS() {
+  try {
+    return NativeModules.XYGTTS;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * TTS Manager - 支持三种 TTS 来源：
@@ -27,9 +33,12 @@ export async function speakText(text: string): Promise<void> {
   }
 
   // 回退到 Android 原生 TTS
-  if (Platform.OS === 'android' && XYGTTS) {
-    await XYGTTS.speak(text);
-    return;
+  if (Platform.OS === 'android') {
+    const xygt = getXYGTTS();
+    if (xygt) {
+      await xygt.speak(text);
+      return;
+    }
   }
 
   // 最终回退
@@ -48,7 +57,7 @@ async function speakViaEdgeTTS(
   };
 
   if (settings.ttsApiKey) {
-    headers['Authorization'] = `Bearer ${settings.ttsApiKey}`;
+    headers.Authorization = `Bearer ${settings.ttsApiKey}`;
   }
 
   const response = await fetch(url, {
@@ -69,7 +78,7 @@ async function speakViaEdgeTTS(
   }
 
   // 将 MP3 保存为临时文件，通过原生 MediaPlayer 播放
-  const tempPath = `${getCachesDir()}/tts_${Date.now()}.mp3`;
+  const tempPath = `${RNFS.CachesDirectoryPath}/tts_${Date.now()}.mp3`;
 
   // 读取响应为 base64
   const blob = await response.blob();
@@ -84,11 +93,14 @@ async function speakViaEdgeTTS(
     reader.readAsDataURL(blob);
   });
 
-  await rnfsWriteFile(tempPath, base64, 'base64');
+  await RNFS.writeFile(tempPath, base64, 'base64');
 
   // 通过原生模块播放 MP3 文件
-  if (Platform.OS === 'android' && XYGTTS) {
-    await XYGTTS.playAudioFile(tempPath);
+  if (Platform.OS === 'android') {
+    const xygt = getXYGTTS();
+    if (xygt) {
+      await xygt.playAudioFile(tempPath);
+    }
   }
 }
 
@@ -103,8 +115,11 @@ async function speakViaWebSpeech(text: string): Promise<void> {
 }
 
 export function stopSpeaking(): void {
-  if (Platform.OS === 'android' && XYGTTS) {
-    XYGTTS.stop();
+  if (Platform.OS === 'android') {
+    const xygt = getXYGTTS();
+    if (xygt) {
+      xygt.stop();
+    }
   }
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();

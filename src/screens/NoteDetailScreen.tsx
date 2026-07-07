@@ -32,19 +32,18 @@ export default function NoteDetailScreen() {
   const {updateNoteInList} = useStore();
 
   useEffect(() => {
+    const loadNote = async () => {
+      const data = await getNoteById(noteId);
+      if (data) {
+        setNote(data);
+        setTitle(data.title);
+        setContent(data.content);
+      }
+    };
     if (noteId) {
       loadNote();
     }
   }, [noteId]);
-
-  const loadNote = async () => {
-    const data = await getNoteById(noteId);
-    if (data) {
-      setNote(data);
-      setTitle(data.title);
-      setContent(data.content);
-    }
-  };
 
   const saveNote = async () => {
     if (!note) return;

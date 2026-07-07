@@ -1,6 +1,6 @@
-import React, {useState, useCallback} from 'react';
-import {View, StyleSheet, PanResponder, Dimensions, Text} from 'react-native';
-import Svg, {Path, Circle, G} from 'react-native-svg';
+import React, {useState} from 'react';
+import {View, StyleSheet, PanResponder, Text} from 'react-native';
+import Svg, {Path} from 'react-native-svg';
 import {Annotation} from '../types';
 
 interface AnnotationLayerProps {
