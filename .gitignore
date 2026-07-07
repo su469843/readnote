@@ -74,4 +74,5 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-XYGNotes/
+# XYGNotes/ (已迁移到根目录)
+# XYGNotes/
