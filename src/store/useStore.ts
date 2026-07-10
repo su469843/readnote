@@ -1,7 +1,6 @@
 import {create} from 'zustand';
 import {Note, AppSettings, SSHConnection} from '../types';
-import {loadSettings, saveSettings} from '../utils/settings';
-import {loadSSHConnections, saveSSHConnections} from '../utils/settings';
+import {loadSettings, saveSettings, loadSSHConnections, saveSSHConnections} from '../utils/settings';
 
 interface AppState {
   notes: Note[];
