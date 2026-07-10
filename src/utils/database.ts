@@ -134,9 +134,9 @@ export async function updateNote(
   }
 
   sets.push("updated_at = datetime('now','localtime')");
-  values.push(id);
+  // id 已经添加到 values 末尾，无需重复 push
 
-  await db.executeSql(`UPDATE notes SET ${sets.join(', ')} WHERE id = ?`, values);
+  await db.executeSql(`UPDATE notes SET ${sets.join(', ')} WHERE id = ?`, [...values, id]);
 }
 
 export async function deleteNote(id: number): Promise<void> {
