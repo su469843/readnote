@@ -2,6 +2,22 @@ import {NativeModules, Platform} from 'react-native';
 import RNFS from 'react-native-fs';
 import {loadSettings} from './settings';
 
+type WebSpeechSynthesis = {
+  speak: (utterance: WebSpeechSynthesisUtterance) => void;
+  cancel: () => void;
+};
+
+type WebSpeechSynthesisUtterance = {
+  lang: string;
+};
+
+type WebSpeechWindow = {
+  speechSynthesis?: WebSpeechSynthesis;
+  SpeechSynthesisUtterance?: new (text: string) => WebSpeechSynthesisUtterance;
+};
+
+declare const window: WebSpeechWindow | undefined;
+
 function getXYGTTS() {
   try {
     return NativeModules.XYGTTS;
@@ -105,8 +121,8 @@ async function speakViaEdgeTTS(
 }
 
 async function speakViaWebSpeech(text: string): Promise<void> {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
+  if (typeof window !== 'undefined' && window.speechSynthesis && window.SpeechSynthesisUtterance) {
+    const utterance = new window.SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
     window.speechSynthesis.speak(utterance);
     return;
@@ -121,7 +137,7 @@ export function stopSpeaking(): void {
       xygt.stop();
     }
   }
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
 }

@@ -80,7 +80,7 @@ export default function NoteDetailScreen() {
         updateNoteInList(updated);
       }
     } catch (err) {
-      if (!isErrorWithCode(err, errorCodes.E_CANCELED)) {
+      if (!isErrorWithCode(err) || err.code !== errorCodes.OPERATION_CANCELED) {
         Alert.alert('错误', 'PDF 文件选择失败');
       }
     }
